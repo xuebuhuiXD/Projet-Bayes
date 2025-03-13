@@ -92,7 +92,7 @@ for(iter in 1:n_iter) {
       sigma_lambda <- sigma_lambda * 1.1  
       sigma_theta  <- sigma_theta * 1.1
     }
-    accept_count <- 0  # 重新计数
+    accept_count <- 0  
   }
 }
 
