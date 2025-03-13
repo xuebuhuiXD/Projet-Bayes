@@ -4,11 +4,6 @@ output: html_notebook
 ---
 
 ```{r}
-library(ggplot2)
-library(coda)
-```
-
-```{r}
 N <- 48
 y <- c(529, 530, 532, 533.1, 533.4, 533.6, 533.7, 534.1, 534.8, 535.3, 
        535.4, 535.9, 536.1, 536.3, 536.4, 536.6, 537, 537.4, 537.5, 538.3, 
@@ -78,7 +73,7 @@ for(iter in 1:n_iter) {
     accept_count <- accept_count + 1
   }
   
-  ## (d) update tau
+  ## update tau
   ssq <- sum((y[T_==1] - lambda1)^2) + sum((y[T_==2] - (lambda1 + theta))^2)
   tau <- rgamma(1, shape=0.001 + N/2, rate=0.001 + 0.5 * ssq)
   
@@ -132,68 +127,4 @@ posterior_summary(1 - samples_p1[burned_samples], "P[2]")
 posterior_summary(samples_lambda1[burned_samples], "lambda[1]")
 posterior_summary((samples_lambda1 + samples_theta)[burned_samples], "lambda[2]")
 posterior_summary((1 / sqrt(samples_tau))[burned_samples], "sigma")  # sigma = 1/sqrt(tau)
-```
-
-```{r}
-df <- data.frame(lambda1 = samples_lambda1[burned_samples])
-ggplot(df, aes(x = lambda1)) +
-  geom_histogram(binwidth = 0.5, fill="blue", alpha=0.5, color="black") +
-  geom_density(aes(y = after_stat(count)* 0.5), color="red") +  
-  theme_minimal() +
-  labs(title="Posterior Distribution of lambda1", x="lambda1", y="Frequency")
-```
-
-```{r}
-df_lambda2 <- data.frame(lambda2 = (samples_lambda1 + samples_theta)[burned_samples])
-ggplot(df_lambda2, aes(x = lambda2)) +
-  geom_histogram(binwidth = 0.5, fill="green", alpha=0.5, color="black") +
-  geom_density(aes(y = after_stat(count) * 0.5), color="red") +  
-  theme_minimal() +
-  labs(title="Posterior Distribution of lambda2", x="lambda2", y="Frequency")
-```
-
-```{r}
-df_P1 <- data.frame(P1 = samples_p1[burned_samples])
-ggplot(df_P1, aes(x = P1)) +
-  geom_histogram(binwidth = 0.05, fill="purple", alpha=0.5, color="black") +
-  geom_density(aes(y = after_stat(count) * 0.05), color="red") +  
-  theme_minimal() +
-  labs(title="Posterior Distribution of P1", x="P1", y="Frequency")
-
-```
-
-```{r}
-df_sigma <- data.frame(sigma = (1 / sqrt(samples_tau))[burned_samples])
-ggplot(df_sigma, aes(x = sigma)) +
-  geom_histogram(binwidth = 0.2, fill="orange", alpha=0.5, color="black") +
-  geom_density(aes(y = after_stat(count) * 0.2), color="red") +  
-  theme_minimal() +
-  labs(title="Posterior Distribution of Sigma", x="sigma", y="Frequency")
-
-```
-
-```{r}
-# sample after burn-in 
-burned_samples <- (burn_in+1):n_iter
-
-# Traceplot
-traceplot_df <- data.frame(
-  Iteration = rep(burned_samples, 3),
-  Value = c(samples_lambda1[burned_samples], 
-            (samples_lambda1 + samples_theta)[burned_samples], 
-            (1 / sqrt(samples_tau))[burned_samples]),
-  Parameter = rep(c("lambda1", "lambda2", "sigma"), each = length(burned_samples))
-)
-
-ggplot(traceplot_df, aes(x = Iteration, y = Value, color = Parameter)) +
-  geom_line(alpha = 0.6) +
-  theme_minimal() +
-  labs(title = "Traceplot des paramètres MCMC", x = "Itération", y = "Valeur")
-```
-
-```{r}
-# Autocorrelation
-acf_lambda1 <- acf(samples_lambda1[burned_samples], plot = TRUE, main = "Autocorrelation de lambda1")
-acf_lambda2 <- acf((samples_lambda1 + samples_theta)[burned_samples], plot = TRUE, main = "Autocorrelation de lambda2")
-acf_sigma <- acf((1 / sqrt(samples_tau))[burned_samples], plot = TRUE, main = "Autocorrelation de sigma")
 ```
