@@ -5,6 +5,7 @@ output: html_notebook
 
 ```{r}
 library(ggplot2)
+library(coda)
 ```
 
 ```{r}
@@ -137,7 +138,62 @@ posterior_summary((1 / sqrt(samples_tau))[burned_samples], "sigma")  # sigma = 1
 df <- data.frame(lambda1 = samples_lambda1[burned_samples])
 ggplot(df, aes(x = lambda1)) +
   geom_histogram(binwidth = 0.5, fill="blue", alpha=0.5, color="black") +
-  geom_density(aes(y = ..count.. * 0.5), color="red") +  
+  geom_density(aes(y = after_stat(count)* 0.5), color="red") +  
   theme_minimal() +
   labs(title="Posterior Distribution of lambda1", x="lambda1", y="Frequency")
+```
+
+```{r}
+df_lambda2 <- data.frame(lambda2 = (samples_lambda1 + samples_theta)[burned_samples])
+ggplot(df_lambda2, aes(x = lambda2)) +
+  geom_histogram(binwidth = 0.5, fill="green", alpha=0.5, color="black") +
+  geom_density(aes(y = after_stat(count) * 0.5), color="red") +  
+  theme_minimal() +
+  labs(title="Posterior Distribution of lambda2", x="lambda2", y="Frequency")
+```
+
+```{r}
+df_P1 <- data.frame(P1 = samples_p1[burned_samples])
+ggplot(df_P1, aes(x = P1)) +
+  geom_histogram(binwidth = 0.05, fill="purple", alpha=0.5, color="black") +
+  geom_density(aes(y = after_stat(count) * 0.05), color="red") +  
+  theme_minimal() +
+  labs(title="Posterior Distribution of P1", x="P1", y="Frequency")
+
+```
+
+```{r}
+df_sigma <- data.frame(sigma = (1 / sqrt(samples_tau))[burned_samples])
+ggplot(df_sigma, aes(x = sigma)) +
+  geom_histogram(binwidth = 0.2, fill="orange", alpha=0.5, color="black") +
+  geom_density(aes(y = after_stat(count) * 0.2), color="red") +  
+  theme_minimal() +
+  labs(title="Posterior Distribution of Sigma", x="sigma", y="Frequency")
+
+```
+
+```{r}
+# sample after burn-in 
+burned_samples <- (burn_in+1):n_iter
+
+# Traceplot
+traceplot_df <- data.frame(
+  Iteration = rep(burned_samples, 3),
+  Value = c(samples_lambda1[burned_samples], 
+            (samples_lambda1 + samples_theta)[burned_samples], 
+            (1 / sqrt(samples_tau))[burned_samples]),
+  Parameter = rep(c("lambda1", "lambda2", "sigma"), each = length(burned_samples))
+)
+
+ggplot(traceplot_df, aes(x = Iteration, y = Value, color = Parameter)) +
+  geom_line(alpha = 0.6) +
+  theme_minimal() +
+  labs(title = "Traceplot des paramètres MCMC", x = "Itération", y = "Valeur")
+```
+
+```{r}
+# Autocorrelation
+acf_lambda1 <- acf(samples_lambda1[burned_samples], plot = TRUE, main = "Autocorrelation de lambda1")
+acf_lambda2 <- acf((samples_lambda1 + samples_theta)[burned_samples], plot = TRUE, main = "Autocorrelation de lambda2")
+acf_sigma <- acf((1 / sqrt(samples_tau))[burned_samples], plot = TRUE, main = "Autocorrelation de sigma")
 ```
