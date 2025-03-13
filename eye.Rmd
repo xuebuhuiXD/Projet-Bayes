@@ -4,6 +4,10 @@ output: html_notebook
 ---
 
 ```{r}
+library(ggplot2)
+```
+
+```{r}
 N <- 48
 y <- c(529, 530, 532, 533.1, 533.4, 533.6, 533.7, 534.1, 534.8, 535.3, 
        535.4, 535.9, 536.1, 536.3, 536.4, 536.6, 537, 537.4, 537.5, 538.3, 
@@ -127,4 +131,13 @@ posterior_summary(1 - samples_p1[burned_samples], "P[2]")
 posterior_summary(samples_lambda1[burned_samples], "lambda[1]")
 posterior_summary((samples_lambda1 + samples_theta)[burned_samples], "lambda[2]")
 posterior_summary((1 / sqrt(samples_tau))[burned_samples], "sigma")  # sigma = 1/sqrt(tau)
+```
+
+```{r}
+df <- data.frame(lambda1 = samples_lambda1[burned_samples])
+ggplot(df, aes(x = lambda1)) +
+  geom_histogram(binwidth = 0.5, fill="blue", alpha=0.5, color="black") +
+  geom_density(aes(y = ..count.. * 0.5), color="red") +  
+  theme_minimal() +
+  labs(title="Posterior Distribution of lambda1", x="lambda1", y="Frequency")
 ```
