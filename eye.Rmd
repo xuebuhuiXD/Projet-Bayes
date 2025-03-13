@@ -1,0 +1,130 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+N <- 48
+y <- c(529, 530, 532, 533.1, 533.4, 533.6, 533.7, 534.1, 534.8, 535.3, 
+       535.4, 535.9, 536.1, 536.3, 536.4, 536.6, 537, 537.4, 537.5, 538.3, 
+       538.5, 538.6, 539.4, 539.6, 540.4, 540.8, 542, 542.8, 543, 543.5, 
+       543.8, 543.9, 545.3, 546.2, 548.8, 548.7, 548.9, 549, 549.4, 549.9, 
+       550.6, 551.2, 551.4, 551.5, 551.6, 552.8, 552.9, 553.2)
+
+alpha <- c(1,1)   # Dirichlet(1,1)
+
+##MCMC 
+n_iter <- 10000    
+burn_in <- 1000    
+thin <- 1          
+set.seed(123)      
+
+## initiation
+lambda1 <- 535
+theta   <- 5
+tau     <- 1/10   # sigmasq = 10 donc tau = 0.1
+p       <- c(0.5, 0.5)
+
+T_ <- sample(1:2, N, replace=TRUE)  
+
+##MCMC sampling
+samples_lambda1 <- numeric(n_iter)
+samples_theta   <- numeric(n_iter)
+samples_tau     <- numeric(n_iter)
+samples_p1      <- numeric(n_iter)
+
+
+```
+
+```{r}
+sigma_lambda <- 0.5
+sigma_theta  <- 0.2
+
+accept_count <- 0
+adjust_interval <- 100 
+
+for(iter in 1:n_iter) {
+  
+  ## update T[i]
+  lam2 <- lambda1 + theta
+  for(i in 1:N) {
+    prob1 <- p[1] * dnorm(y[i], lambda1, sqrt(1/tau))
+    prob2 <- p[2] * dnorm(y[i], lam2, sqrt(1/tau))
+    T_[i] <- sample(1:2, 1, prob=c(prob1, prob2))
+  }
+  
+  ## update P
+  n1 <- sum(T_ == 1)
+  p1_new <- rbeta(1, 1 + n1, 1 + (N - n1))
+  p <- c(p1_new, 1 - p1_new)
+  
+  ## update Metropolis (lambda1, theta)
+  lam1_prop <- lambda1 + rnorm(1, mean=0, sd=sigma_lambda)
+  theta_prop <- abs(theta + rnorm(1, mean=0, sd=sigma_theta))
+  
+  log_accept_ratio <- sum(dnorm(y[T_==1], mean=lam1_prop, sd=sqrt(1/tau), log=TRUE)) +
+    sum(dnorm(y[T_==2], mean=lam1_prop + theta_prop, sd=sqrt(1/tau), log=TRUE)) -
+    sum(dnorm(y[T_==1], mean=lambda1, sd=sqrt(1/tau), log=TRUE)) -
+    sum(dnorm(y[T_==2], mean=lambda1 + theta, sd=sqrt(1/tau), log=TRUE))
+  
+  if(log(runif(1)) < log_accept_ratio) {
+    lambda1 <- lam1_prop
+    theta   <- theta_prop
+    accept_count <- accept_count + 1
+  }
+  
+  ## (d) update tau
+  ssq <- sum((y[T_==1] - lambda1)^2) + sum((y[T_==2] - (lambda1 + theta))^2)
+  tau <- rgamma(1, shape=0.001 + N/2, rate=0.001 + 0.5 * ssq)
+  
+  ## save the samples
+  samples_lambda1[iter] <- lambda1
+  samples_theta[iter]   <- theta
+  samples_tau[iter]     <- tau
+  samples_p1[iter]      <- p[1]
+
+  if(iter %% adjust_interval == 0) {
+    accept_rate <- accept_count / adjust_interval  # calculate accept rate
+    if(accept_rate < 0.2) {
+      sigma_lambda <- sigma_lambda * 0.9  
+      sigma_theta  <- sigma_theta * 0.9
+    } else if(accept_rate > 0.5) {
+      sigma_lambda <- sigma_lambda * 1.1  
+      sigma_theta  <- sigma_theta * 1.1
+    }
+    accept_count <- 0  # 重新计数
+  }
+}
+
+## analyse the result
+burned_samples <- (burn_in+1):n_iter
+cat("Posterior Mean Estimates:\n")
+cat("lambda1 =", mean(samples_lambda1[burned_samples]), "\n")
+cat("theta   =", mean(samples_theta[burned_samples]), "\n")
+cat("tau     =", mean(samples_tau[burned_samples]), "\n")
+cat("p1      =", mean(samples_p1[burned_samples]), "\n")
+```
+
+```{r}
+
+posterior_summary <- function(samples, name) {
+  mean_val <- mean(samples)
+  sd_val <- sd(samples)
+  mc_error <- sd_val / sqrt(length(samples))  
+  quantiles <- quantile(samples, probs = c(0.025, 0.5, 0.975))
+  
+  cat(sprintf("%-10s %8.4f %8.4f %10.6f %8.4f %8.4f %8.4f %6d %6d\n", 
+              name, mean_val, sd_val, mc_error, 
+              quantiles[1], quantiles[2], quantiles[3], burn_in+1, n_iter))
+}
+
+cat(sprintf("%-10s %8s %8s %10s %8s %8s %8s %6s %6s\n",
+            "Parameter", "Mean", "SD", "MC_error", "2.5%", "Median", "97.5%", "Start", "Sample"))
+cat(rep("-", 70), "\n")
+
+posterior_summary(samples_p1[burned_samples], "P[1]")
+posterior_summary(1 - samples_p1[burned_samples], "P[2]")
+posterior_summary(samples_lambda1[burned_samples], "lambda[1]")
+posterior_summary((samples_lambda1 + samples_theta)[burned_samples], "lambda[2]")
+posterior_summary((1 / sqrt(samples_tau))[burned_samples], "sigma")  # sigma = 1/sqrt(tau)
+```
